@@ -3,6 +3,8 @@ package model;
 import java.sql.SQLException;
 import java.util.Scanner;
 
+import view.ConsoleColor;
+
 public class MainMenu {
 	// 新規登録のインスタンス
 	CreateNewAccount CNA = new CreateNewAccount();
@@ -20,10 +22,18 @@ public class MainMenu {
 		Scanner scanner = new Scanner(System.in);
 		input = scanner.nextInt();
 		// 新規登録 ログイン 終了の条件分岐
-		if (input == 0) {
+		switch (input) {
+		case 0 :
 			CNA.start();
-		} else if (input == 1) {
+			break;
+		
+		case 1 :
 			login.start();
+			break;
+			
+		case 2 :
+			System.out.println(ConsoleColor.toBlue("プログラムを終了します"));
+			System.exit(0);
 		}
 	}
 }

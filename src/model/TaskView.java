@@ -6,11 +6,10 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.format.DateTimeFormatter;
 
+import controller.EnterTop;
 import sqlconnect.SqlConnect;
 
 public class TaskView {
-	// TopPageクラスのインスタンス生成
-	TopPage top = new TopPage();
 	// 全部表示
 	public void all() throws SQLException{
 		// sql
@@ -44,12 +43,7 @@ public class TaskView {
 			e.printStackTrace();
 		}
 		// enter押下でtoppage表示.
-		try {
-			int i = System.in.read();
-		} catch (Exception e) {
-			e.printStackTrace();
-		}
-		top.start();
+		EnterTop.start();
 	}
 	
 	
@@ -85,12 +79,7 @@ public class TaskView {
 			e.printStackTrace();
 		}
 		// enter押下でtoppage表示
-		try {
-			int i = System.in.read();
-		} catch (Exception e) {
-			e.printStackTrace();
-		}
-		top.start();
+		EnterTop.start();
 	}
 	
 	// 期限の近いタスクを表示
@@ -125,12 +114,7 @@ public class TaskView {
 				e.printStackTrace();
 			}
 			// enter押下でtoppage表示
-			try {
-				int i = System.in.read();
-			} catch (Exception e) {
-				e.printStackTrace();
-			}
-			top.start();
+			EnterTop.start();
 	}
 	
 	// 完了済みのタスクを表示
@@ -166,13 +150,6 @@ public class TaskView {
 				e.printStackTrace();
 			}
 			// enter押下でtoppage表示
-			try {
-				int i = System.in.read();
-			} catch (Exception e) {
-				e.printStackTrace();
-			}
-			top.start();
-		
-
+			EnterTop.start();
 	}
 }

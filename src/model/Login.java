@@ -6,20 +6,70 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.Scanner;
 
+import javax.swing.JOptionPane;
+import javax.swing.JPasswordField;
+
+import controller.EnterTop;
+import controller.PasswordHash;
 import sqlconnect.SqlConnect;
+import view.ConsoleColor;
 
 public class Login {
 		public static String loggedInUser = null;
+		public static String email = null;
+		public static String pass = null;
 	public void start() throws SQLException {
-		// Scanner
-		Scanner scanner = new Scanner(System.in);
 		System.out.println("＝ログイン＝");
+		mail();
+		password();
+		login();
+	}
+	
+	public void mail() {
 		System.out.print("メールアドレスを入力してください : ");
-		String email = scanner.nextLine();
-		System.out.print("パスワードを入力してください : ");
-		String pass = scanner.nextLine();
+		Scanner scanner = new Scanner(System.in);
+		Login.email = scanner.nextLine();
+		if (Login.email == null || Login.email.trim().isEmpty()) {
+			System.out.println(ConsoleColor.toRed("メールアドレスは必須項目です。"));
+			mail();
+		} else if (CreateNewAccount.adressChecker(Login.email) == false) {
+			System.out.println(ConsoleColor.toRed("正しいメールアドレス形式で入力してください。"));
+			mail();
+		} else if (CreateNewAccount.isHalfWidth(Login.email) == false) {
+			System.out.println(ConsoleColor.toRed("メールアドレスは半角英数字のみで入力してください。"));
+			mail();
+		}
+	}
+	public void password() throws SQLException {
+		JPasswordField pwField = new JPasswordField(20);
+		int option = JOptionPane.showConfirmDialog(null, pwField, "パスワードを入力してください", JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
+		if (option == JOptionPane.OK_OPTION) {
+			char[] pass = pwField.getPassword();
+			Login.pass = new String(pass);
+		} else {
+			System.out.println(ConsoleColor.toRed("キャンセルされました。"));
+			TopPage.start();
+		}
+		if (Login.pass == null || Login.pass.trim().isEmpty()) {
+			System.out.println(ConsoleColor.toRed("パスワードは必須項目です。"));
+			password();
+		} else if (CreateNewAccount.isHalfWidth(Login.pass) == false) {
+			System.out.println(ConsoleColor.toRed("パスワードは半角英数字のみで入力してください。"));
+			password();
+		} else if (Login.pass.length() > 10 || Login.pass.length() < 3) {
+			System.out.println(ConsoleColor.toRed("パスワードは10文字以内、3文字以上で入力してください。"));
+			password();
+		} else if (CreateNewAccount.caseCheck(Login.pass) == false) {
+			System.out.println(ConsoleColor.toRed("パスワードは大文字小文字数字を組み合わせて入力してください。"));
+			password();
+		} else if (CreateNewAccount.hasSpecialChar(Login.pass)) {
+			System.out.println(ConsoleColor.toRed("パスワードは特殊記号を使用しないでください。"));
+			password();
+		}
+	}
+	
+	public void login() throws SQLException {
 		System.out.println("＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝");
-		// ユーザー名の呼び出し。
 		String sql = "SELECT name FROM users WHERE email = ?";
 		String name = null;
 		try(Connection connection = SqlConnect.sqlConnect();
@@ -32,26 +82,15 @@ public class Login {
 		} catch (SQLException e) {
 			e.printStackTrace();
 		}
-		
-		
-		if (authenticate(email, pass)) {
-			System.out.println(name + "さん、ログインが完了しました");
+		if (authenticate(Login.email, Login.pass)) {
+			System.out.println(ConsoleColor.toBlue(name + "さん、ログインが完了しました"));
 			loggedInUser = name;
-		} else {
-			System.out.println("ログイン失敗");
-			start();
-		}
-		// トップページのインスタンス
-		TopPage toppage = new TopPage();
-		try {
-			int i = System.in.read();
-		} catch (Exception e) {
-			System.out.println("入力エラーです");
-			e.printStackTrace();
-		}
-		toppage.start();
-		}
-	
+			EnterTop.start();
+			} else {
+				System.out.println(ConsoleColor.toRed("一致するデータがありません。再度入力してください。"));
+				start();
+			}
+	}
 	// パスワードの入力チェック。
 	private static boolean authenticate(String email, String pass) throws SQLException {
 		String sql = "SELECT pass FROM users WHERE email = ?";
@@ -63,13 +102,15 @@ public class Login {
 			
 			if (rs.next()) {
 				String sqlPass = rs.getString("pass");
-				return pass.equals(sqlPass);
+				String inputHash = PasswordHash.hashPassword(pass);
+				return sqlPass.equals(inputHash);
 			}
 		} catch (SQLException e) {
 			e.printStackTrace();
 		}
 		return false;
 	}
+	
 	// ログアウト機能
 	public void out() throws SQLException {
 		TopPage top = new TopPage();

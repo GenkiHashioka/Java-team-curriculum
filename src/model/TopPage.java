@@ -3,9 +3,11 @@ package model;
 import java.sql.SQLException;
 import java.util.Scanner;
 
+import view.ConsoleColor;
+
 public class TopPage {
 	
-	public void start() throws SQLException{
+	public static void start() throws SQLException{
 		// Taskviewクラスのインスタンス生成。
 		TaskView tv = new TaskView();
 		// TaskEditクラスのインスタンス生成
@@ -25,7 +27,18 @@ public class TopPage {
 		System.out.print("実行する番号を入力してください : ");
 		// scanner
 		Scanner scanner = new Scanner(System.in);
-		int execution = scanner.nextInt();
+		int execution = 0;
+		
+		// バリデーション用
+		String input = scanner.nextLine();
+		try {
+			execution = Integer.parseInt(input);
+		} catch (NumberFormatException e) {
+			System.out.println(ConsoleColor.toRed("数字で入力してください"));
+			TopPage.start();
+		}
+		
+		// 半角数字以外の入力チェック
 		
 		// 条件分岐
 		switch (execution) {
@@ -57,6 +70,10 @@ public class TopPage {
 		case 8:
 			Login login = new Login();
 			login.out();
+			break;
+		default :
+			System.out.println(ConsoleColor.toRed("存在する番号を入力してください"));
+			TopPage.start();
 		}
 	}
 }

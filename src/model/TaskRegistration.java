@@ -1,170 +1,183 @@
 package model;
 
 import java.sql.Connection;
-import java.sql.Date;
 import java.sql.PreparedStatement;
-import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
 import java.time.LocalDate;
+import java.util.InputMismatchException;
 import java.util.Scanner;
 
+import controller.EnterTop;
+import controller.TimeFormat;
+import controller.Validation;
+import sqlconnect.SelectSql;
 import sqlconnect.SqlConnect;
+import view.ConsoleColor;
 
 public class TaskRegistration {
+	// 入力された値を受け取る変数。
+	String title = null;
+	String inputLimit = null;
+	java.sql.Date limit = java.sql.Date.valueOf(LocalDate.now());
+	int departmentNum;
+	String department = null;
+	int staffNum;
+	String staff = null;
+	int statusNum;
+	String status = null;
+	String remarks = null;
+	String created_by = Login.loggedInUser;
 	public void start() throws SQLException {
-		// scannerのインスタンス
-		Scanner scanner = new Scanner(System.in);
-		
-		// 入力された値を受け取る変数。
-		String title = null;
-		java.sql.Date limit = java.sql.Date.valueOf(LocalDate.now());
-		String department = null;
-		String staff = null;
-		String status = null;
-		String remarks = null;
-		String created_by = Login.loggedInUser;
 		// 初期表示
 		System.out.println("＝タスク登録＝");
+		taskName();
+		limit();
+		department();
+		staff();
+		status();
+		remarks();
+		registration();
+		EnterTop.start();
+	}
+	
+	// タスク名入力
+	public void taskName() {
 		System.out.print("タスク名を入力してください : ");
-		title = scanner.nextLine();
-		System.out.print("期限を入力してください (例: 2025/03/01) : ");
-		String inputLimit = scanner.nextLine();
-		// sql.Dateに変換
-		try {
-			SimpleDateFormat sdf = new SimpleDateFormat("yyyy/MM/dd");
-			java.util.Date utilDate = sdf.parse(inputLimit);
-			limit = new Date(utilDate.getTime());
-		} catch (ParseException e) {
-			e.printStackTrace();
+		Scanner scanner = new Scanner(System.in);
+		this.title = scanner.nextLine();
+		if (Validation.nullCheck(this.title)) {
+			System.out.println(ConsoleColor.toRed("タスク名は必須です。"));
+			taskName();
+		} else if (Validation.isLengthInRange(this.title, 0, 30) == false) {
+			System.out.println(ConsoleColor.toRed("タスク名は30文字以内で入力してください。"));
+			taskName();
 		}
-		
-		// 改行
-		System.out.println();
-		
-		// SQLf
-		String sql = "SELECT * FROM department_mst";
-		// 接続
-		Connection connection = SqlConnect.sqlConnect();
-		// ステートメント
-		PreparedStatement pstmt = connection.prepareStatement(sql);
-		// 実行
-		ResultSet rs = pstmt.executeQuery();
-		// コンソール出力
-		while (rs.next()) {
-			System.out.print(rs.getInt("id") + " ");
-			System.out.println(rs.getString("department"));
+	}
+	
+	// 期限入力。
+	public void limit() {
+		Scanner scanner = new Scanner(System.in);
+		while (true) {
+			System.out.print("期限を入力してください (例: 2025/03/01) : ");
+			this.inputLimit = scanner.nextLine().trim();
+			if (Validation.nullCheck(inputLimit)) {
+				System.out.println(ConsoleColor.toRed("期限は必須項目です。"));
+				continue;
+			}
+			
+			this.limit = TimeFormat.formatter(this.inputLimit);
+			if (this.limit == null) {
+				continue;
+			}
+			break;
 		}
+	}
+	// 担当部署の入力
+	public void department() {
+		SelectSql.displayDepartment();
+		System.out.println("＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝");
 		System.out.print("担当部署の番号を選択してください : ");
-		/*
-		 * 担当部署名を変数に取得する。
-		 */
-		int departmentNum = scanner.nextInt();
-		sql = "SELECT * FROM department_mst WHERE id = ?";
-		// ステートメント
-		pstmt = connection.prepareStatement(sql);
-		// 値のセット
-		pstmt.setInt(1, departmentNum);
-		// 実行
-		rs = pstmt.executeQuery();
-		while (rs.next()) {
-			department = rs.getString("department");
+		Scanner scanner = new Scanner(System.in);
+		try {
+			this.departmentNum = scanner.nextInt();
+			scanner.nextLine();
+		} catch (InputMismatchException e) {
+			System.out.println(ConsoleColor.toRed("数値を入力してください"));
+			department();
 		}
-		// 改行
-		System.out.println();
-		/*
-		 * 担当者の登録
-		 */
-		sql = "SELECT * FROM users";
-		// ステートメント
-		pstmt = connection.prepareStatement(sql);
-		// 実行
-		rs = pstmt.executeQuery();
-		while (rs.next()) {
-			System.out.print(rs.getInt("id") + " ");
-			System.out.println(rs.getString("name"));
+		if (Validation.departmentDataNumCheck(departmentNum) == false) {
+			System.out.println(ConsoleColor.toRed("存在する番号を入力してください。"));
+			department();
+		} else {
+			this.department = SelectSql.getDepartmentName(departmentNum);			
 		}
+	}
+	
+	// 担当者の入力
+	public void staff() {
+		SelectSql.displayStaff();
 		System.out.println("＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝");
 		System.out.print("担当者を選択してください : ");
-		int staffNum = scanner.nextInt();
-		sql = "SELECT * FROM users WHERE id = ?";
-		pstmt = connection.prepareStatement(sql);
-		pstmt.setInt(1, staffNum);
-		rs = pstmt.executeQuery();
-		while(rs.next()) {
-			staff = rs.getString("name");
-		}
-		// 改行
-		System.out.println();
-		
-		/*
-		 * ステータスの登録
-		 */
-		sql = "SELECT * FROM status_mst";
-		pstmt = connection.prepareStatement(sql);
-		rs = pstmt.executeQuery();
-		while(rs.next()) {
-			System.out.print(rs.getInt("id") + " ");
-			System.out.println(rs.getString("status"));
-		}
-		System.out.println("＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝");
-		System.out.print("ステータス番号を入力してください : ");
-		int statusNum = scanner.nextInt();
-		// 改行の打消
-		scanner.nextLine();
-		// sqlからカラム名を引っ張る。
-		sql = "SELECT * FROM status_mst WHERE id = ?";
-		pstmt = connection.prepareStatement(sql);
-		pstmt.setInt(1, statusNum);
-		rs = pstmt.executeQuery();
-		while (rs.next()) {
-			status = rs.getString("status");
-		}
-		// 改行
-		System.out.println();
-		
-		/*
-		 * 備考
-		 */
-		System.out.print("備考を入力してください : ");
-		remarks = scanner.nextLine();
-		System.out.println("＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝");
-		
-		/*
-		 * タスク登録
-		 */
-		sql = "INSERT INTO tasks (title, \"limit\", department, staff, status, remarks, created_by) VALUES (?, ?, ?, ?, ?, ?, ?)";
+		Scanner scanner = new Scanner(System.in);
 		try {
-			pstmt = connection.prepareStatement(sql);
-			pstmt.setString(1, title);
-			pstmt.setDate(2, limit);
-			pstmt.setInt(3, departmentNum);
-			pstmt.setInt(4, staffNum);
-			pstmt.setInt(5, statusNum);
-			pstmt.setString(6, remarks);
-			pstmt.setString(7, created_by);
+			this.staffNum = scanner.nextInt();
+			scanner.nextLine();
+		} catch (InputMismatchException e) {
+			System.out.println(ConsoleColor.toRed("数値を入力してください"));
+			staff();
+		}
+		if (Validation.usersDataNumCheck(this.staffNum) == false) {
+			System.out.println(ConsoleColor.toRed("存在する番号を入力してください。"));
+			staff();
+		} else {
+			this.staff = SelectSql.getStaffName(this.staffNum);			
+		}
+	}
+	
+	// ステータスの入力
+	public void status() {
+		Scanner scanner = new Scanner(System.in);
+		while (true) {
+			try {
+				SelectSql.displayStatus();
+				System.out.println("＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝");
+				System.out.print("ステータス番号を入力してください : ");
+				this.statusNum = scanner.nextInt();
+				scanner.nextLine();
+				if (!Validation.statusDataNumCheck(this.statusNum)) {
+					System.out.println(ConsoleColor.toRed("存在する番号を入力してください。"));
+					continue;
+				}
+				break;
+			} catch (InputMismatchException e) {
+				System.out.println(ConsoleColor.toRed("数値を入力してください"));
+				scanner.nextLine();
+			}
+		}
+		this.status = SelectSql.getStatus(this.statusNum);
+	}
+	
+	// 備考を入力
+	public void remarks() {
+		Scanner scanner = new Scanner(System.in);
+		while (true) {
+			System.out.print("備考を入力してください : ");
+			remarks = scanner.nextLine();
+			if (!Validation.isLengthInRange(remarks, 0, 50)) {
+				System.out.println(ConsoleColor.toRed("備考は50文字以内で入力してください。"));
+				continue;
+			}
+			break;
+		}
+		System.out.println("＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝");
+	}
+	
+	// タスク登録
+	public void registration() throws SQLException {
+		String sql = "INSERT INTO tasks (title, \"limit\", department, staff, status, remarks, created_by) VALUES (?, ?, ?, ?, ?, ?, ?)";
+		try (Connection connection = SqlConnect.sqlConnect();
+			 PreparedStatement pstmt = connection.prepareStatement(sql);) {
+			pstmt.setString(1, this.title);
+			pstmt.setDate(2, this.limit);
+			pstmt.setInt(3, this.departmentNum);
+			pstmt.setInt(4, this.staffNum);
+			pstmt.setInt(5, this.statusNum);
+			pstmt.setString(6, this.remarks);
+			pstmt.setString(7, this.created_by);
 			
 			int rowsInserted = pstmt.executeUpdate();
 			if (rowsInserted > 0) {
-				System.out.println("タスク名 : " + title);
-				System.out.println("期限 : " + inputLimit);
-				System.out.println("担当部署 : " + department);
-				System.out.println("担当者 : " + staff);
-				System.out.println("ステータス : " + status);
-				System.out.println("備考 : " + remarks);
-				System.out.println("登録が完了しました");
+				System.out.println(ConsoleColor.toBlue("タスク名 : " + this.title));
+				System.out.println(ConsoleColor.toBlue("期限 : " + this.inputLimit));
+				System.out.println(ConsoleColor.toBlue("担当部署 : " + this.department));
+				System.out.println(ConsoleColor.toBlue("担当者 : " + this.staff));
+				System.out.println(ConsoleColor.toBlue("ステータス : " + this.status));
+				System.out.println(ConsoleColor.toBlue("備考 : " + this.remarks));
+				System.out.println(ConsoleColor.toBlue("登録が完了しました"));
 			}
 		} catch (SQLException e) {
-			e.printStackTrace();
+			System.out.println(ConsoleColor.toRed("登録に失敗しました。"));
+			EnterTop.start();
 		}
-		try {
-			int i = System.in.read();
-		} catch (Exception e) {
-			System.out.println("入力エラー");
-			e.printStackTrace();
-		}
-		TopPage top = new TopPage();
-		top.start();
 	}
 }

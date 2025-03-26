@@ -1,16 +1,19 @@
 package model;
 
 import java.sql.Connection;
-import java.sql.Date;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
 import java.time.format.DateTimeFormatter;
+import java.util.InputMismatchException;
 import java.util.Scanner;
 
+import controller.EnterTop;
+import controller.TimeFormat;
+import controller.Validation;
+import sqlconnect.SelectSql;
 import sqlconnect.SqlConnect;
+import view.ConsoleColor;
 
 public class TaskEdit {
 	// TopPageのインスタンス
@@ -51,12 +54,28 @@ public class TaskEdit {
 				System.out.println(id + " [" + status + "] " + title + " 担当者 : " + staff + " 備考 : " + remarks + " 作成日 : " + formattedDate);
 			}
 			System.out.println("＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝");
-			System.out.print("完了に変更するタスクの番号を入力してください : ");
 		} catch (SQLException e) {
 			e.printStackTrace();
 		}
-		// scannerにて入力を促す
-		int completed = scanner.nextInt();
+		
+		int completed = 0;
+		
+		while (true) {
+			try {
+				System.out.print("完了に変更するタスクの番号を入力してください : ");
+				completed = scanner.nextInt();
+				scanner.nextLine();
+				if (!Validation.checkCreatedAndInCharge(completed)) {
+					System.out.println(ConsoleColor.toRed("存在する番号を入力してください。"));
+					continue;
+				}
+				break;
+			} catch (InputMismatchException e) {
+				System.out.println(ConsoleColor.toRed("数値を入力してください"));
+				scanner.nextLine();
+			}
+		}
+		System.out.println("＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝");
 		
 		String updateSql = "UPDATE tasks SET status = ?, updated_by = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?";
 		String selectSql = "SELECT title FROM tasks WHERE id = ?";
@@ -77,20 +96,14 @@ public class TaskEdit {
 			}
 			if (rowsUpdated > 0) {
 				System.out.println("＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝");
-				System.out.println("タスク名 : " + completedTitle + " を完了に変更しました");
+				System.out.println(ConsoleColor.toBlue("タスク名 : " + completedTitle + " を完了に変更しました"));
 			} else {
 				System.out.println("失敗");
 			}
 		} catch (SQLException e) {
 			e.printStackTrace();
 		}
-		try {
-			int i = System.in.read();
-		} catch (Exception e) {
-			e.printStackTrace();
-			System.out.println("入力エラー");
-		}
-		top.start();
+		EnterTop.start();
 	}
 	
 	
@@ -103,33 +116,51 @@ public class TaskEdit {
 					 "FROM tasks t " +
 					 "INNER JOIN status_mst sm ON t.status = sm.id " +
 					 "INNER JOIN users u ON t.staff = u.id " +
+					 "WHERE t.created_by = ? " +
 					 "ORDER BY t.id ASC";
 		
 		try (Connection connection = SqlConnect.sqlConnect();
-			 PreparedStatement pstmt = connection.prepareStatement(sql);
-			 ResultSet rs = pstmt.executeQuery()) {
-			// dateフォーマット変換用
-			DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy/MM/dd");
-			System.out.println("＝全タスク表示＝");
-			while (rs.next()) {
-				int id = rs.getInt("id");
-				String status = rs.getString("status");
-				String title = rs.getString("title");
-				String staff = rs.getString("name");
-				String remarks = rs.getString("remarks");
-				java.sql.Date createdAt = rs.getDate("created_at");
-				String formattedDate = createdAt.toLocalDate().format(formatter);
-				System.out.println(id + " [" + status + "] " + title + " 担当者 : " + staff + " 備考 : " + remarks + " 作成日 : " + formattedDate);
-			}
-			
-		} catch (SQLException e) {
+			 PreparedStatement pstmt = connection.prepareStatement(sql)){
+			pstmt.setString(1, Login.loggedInUser);
+			try (ResultSet rs = pstmt.executeQuery()) {
+				
+					// dateフォーマット変換用
+					DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy/MM/dd");
+					System.out.println("＝全タスク表示＝");
+					while (rs.next()) {
+						int id = rs.getInt("id");
+						String status = rs.getString("status");
+						String title = rs.getString("title");
+						String staff = rs.getString("name");
+						String remarks = rs.getString("remarks");
+						java.sql.Date createdAt = rs.getDate("created_at");
+						String formattedDate = createdAt.toLocalDate().format(formatter);
+						System.out.println(id + " [" + status + "] " + title + " 担当者 : " + staff + " 備考 : " + remarks + " 作成日 : " + formattedDate);
+					}
+				}
+			} catch (SQLException e) {
 			e.printStackTrace();
 		}
+		System.out.println("＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝");
 		// Scannerのインスタンス
 		Scanner scanner = new Scanner(System.in);
-		System.out.println("＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝");
-		System.out.print("削除するタスクの番号を入力してください : ");
-		int deleteNum = scanner.nextInt();
+		int deleteNum = 0;
+		while (true) {
+			try {
+				System.out.print("削除するタスクの番号を入力してください : ");
+				deleteNum = scanner.nextInt();
+				scanner.nextLine();
+				if (!Validation.checkCreated(deleteNum)) {
+					System.out.println(ConsoleColor.toRed("存在する番号を入力してください。"));
+					continue;
+				}
+				break;
+			} catch (InputMismatchException e) {
+				System.out.println(ConsoleColor.toRed("数値を入力してください"));
+				scanner.nextLine();
+			}
+				
+		}
 		System.out.println("＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝");
 		
 		// 削除を行う前にタイトルの取得を行う
@@ -153,19 +184,12 @@ public class TaskEdit {
 				 PreparedStatement deletePs = connection.prepareStatement(deleteSql)) {
 				deletePs.setInt(1, deleteNum);
 				deletePs.executeUpdate();
-				System.out.println("タスク名 : " + deleteTitle + " の削除が完了しました");
+				System.out.println(ConsoleColor.toBlue("タスク名 : " + deleteTitle + " の削除が完了しました"));
 			} catch (SQLException e) {
 				e.printStackTrace();
 			}
 		}
-		
-		// enter押下でtoppageに戻る
-		try {
-			int i = System.in.read();
-		} catch (Exception e) {
-			e.printStackTrace();
-		}
-		top.start();
+		EnterTop.start();
 	}
 	
 	// タスク一覧の表示
@@ -201,11 +225,24 @@ public class TaskEdit {
 		}
 		// タスク選択
 		System.out.println("＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝");
-		System.out.print("編集するタスクを入力してください : ");
 		Scanner scanner = new Scanner(System.in);
-		int editTask = scanner.nextInt();
-		// 改行の打消
-		scanner.nextLine();
+		int editTask = 0;
+		while (true) {
+			try {
+				System.out.print("編集するタスクを入力してください : ");
+				editTask = scanner.nextInt();
+				scanner.nextLine();
+				if (!Validation.checkCreated(editTask)) {
+					System.out.println(ConsoleColor.toRed("存在する番号を入力してください。"));
+					continue;
+				}
+				break;
+			} catch (InputMismatchException e) {
+				System.out.println(ConsoleColor.toRed("数値を入力してください"));
+				scanner.nextLine();
+			}
+		}
+			
 		System.out.println("＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝");
 		
 		// 編集前のタスクを取得
@@ -255,273 +292,288 @@ public class TaskEdit {
 		System.out.println("4 ステータス   " + beforeStatus);
 		System.out.println("5 備考   " + beforeRemarks);
 		System.out.println("6 作成者   " + beforeCreatedBy);
-		System.out.print("編集する情報の番号を入力してください : ");
-		int fieldNumber = scanner.nextInt();
-		// 改行の打消
-		scanner.nextLine();
+		int fieldNumber = 0;
+		while (true) {
+			System.out.print("編集する情報の番号を入力してください : ");
+			try {
+				fieldNumber = scanner.nextInt();
+				scanner.nextLine();
+				if (fieldNumber > 6 || fieldNumber < 0) {
+					System.out.println(ConsoleColor.toRed("存在する番号を入力してください。"));
+					continue;
+				}
+				break;
+			} catch (InputMismatchException e) {
+				System.out.println(ConsoleColor.toRed("数値を入力してください"));
+				scanner.nextLine();
+			}
+		}
+		
 		System.out.println("＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝");
 		switch (fieldNumber) {
 		case 0 :
-			System.out.print("編集後の内容を入力してください : " + beforeTitle + " → ");
-			String newTitle = scanner.nextLine();
+			String newTitle = null;
+			while (true) {
+				System.out.print("編集後の内容を入力してください : " + beforeTitle + " → ");
+				newTitle = scanner.nextLine();
+				if (Validation.nullCheck(newTitle)) {
+					System.out.println(ConsoleColor.toRed("タスク名は必須です。"));
+					continue;
+				} else if (!Validation.isLengthInRange(newTitle, 0, 30)) {
+					System.out.println(ConsoleColor.toRed("タスク名は30文字以内で入力してください。"));
+					continue;
+				}
+				break;
+			}
 			System.out.println("＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝");
-			String updateSql = "UPDATE tasks SET title = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?";
+			String updateSql = "UPDATE tasks SET title = ?, updated_at = CURRENT_TIMESTAMP, updated_by = ? WHERE id = ?";
 			try (Connection connection = SqlConnect.sqlConnect();
 				 PreparedStatement pstmt = connection.prepareStatement(updateSql)) {
 				pstmt.setString(1, newTitle);
-				pstmt.setInt(2, editTask);
+				pstmt.setString(2, Login.loggedInUser);
+				pstmt.setInt(3, editTask);
 				int rows = pstmt.executeUpdate();
 				if (rows > 0) {
-					System.out.println("編集が完了しました");
+					System.out.println(ConsoleColor.toBlue("編集が完了しました"));
 				} else {
 					System.out.println("失敗");
 				}
 			} catch (SQLException e) {
 				e.printStackTrace();
 			}
-			try {
-				int i = System.in.read();
-			} catch (Exception e) {
-				e.printStackTrace();
-			}
-			top.start();
+			EnterTop.start();
 			break;
 		case 1 :
-			System.out.print("編集後の内容を入力してください : " + formattedBLimit + " → ");
-			String newLimit = scanner.nextLine();
-			System.out.println("＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝");
-			// sql.Dateに変換
+			String newLimit = null;
 			java.sql.Date formattedNewLimit = null;
-			try {
-				SimpleDateFormat sdf = new SimpleDateFormat("yyyy/MM/dd");
-				java.util.Date utilDate = sdf.parse(newLimit);
-				formattedNewLimit = new Date(utilDate.getTime());
-			} catch (ParseException e) {
-				e.printStackTrace();
+			while (true) {
+				System.out.print("編集後の内容を入力してください : " + formattedBLimit + " → ");
+				newLimit = scanner.nextLine().trim();
+				if (Validation.nullCheck(newLimit)) {
+					System.out.println(ConsoleColor.toRed("期限は必須項目です。"));
+					continue;
+				}
+				formattedNewLimit = TimeFormat.formatter(newLimit);
+				if (formattedNewLimit == null) {
+					continue;
+				}
+				break;
 			}
+			System.out.println("＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝");
+			
 			// update
-			updateSql = "UPDATE tasks SET \"limit\" = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?";
+			updateSql = "UPDATE tasks SET \"limit\" = ?, updated_at = CURRENT_TIMESTAMP, updated_by = ? WHERE id = ?";
 			try {
 				Connection connection = SqlConnect.sqlConnect();
 				PreparedStatement pstmt = connection.prepareStatement(updateSql);
 				pstmt.setDate(1, formattedNewLimit);
-				pstmt.setInt(2, editTask);
+				pstmt.setString(2, Login.loggedInUser);
+				pstmt.setInt(3, editTask);
 				int rows = pstmt.executeUpdate();
 				if (rows > 0) {
-					System.out.println("編集が完了しました");
+					System.out.println(ConsoleColor.toBlue("編集が完了しました"));
 				} else {
 					System.out.println("失敗");
 				}
 			} catch (SQLException e) {
 				e.printStackTrace();
 			}
-			try {
-				int i = System.in.read();
-			} catch (Exception e) {
-				e.printStackTrace();
-			}
-			top.start();
+			EnterTop.start();
 			break;
 		case 2 :
-			selectSql = "SELECT * FROM department_mst";
-			try {
-				Connection connection = SqlConnect.sqlConnect();
-				PreparedStatement pstmt = connection.prepareStatement(selectSql);
-				ResultSet rs = pstmt.executeQuery();
-				while(rs.next()) {
-					System.out.print(rs.getInt("id") + " ");
-					System.out.println(rs.getString("department"));
+			SelectSql.displayDepartment();
+			int newDepartmentNum;
+			System.out.println("＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝");
+			while (true) {
+				System.out.print("編集後の部署番号を選択してください : " + beforeDepartment + " → ");
+				try {
+					newDepartmentNum = scanner.nextInt();
+					scanner.nextLine();
+					if (!Validation.departmentDataNumCheck(newDepartmentNum)) {
+						System.out.println(ConsoleColor.toRed("存在する番号を入力してください。"));
+						continue;
+					}
+					break;
+				} catch (InputMismatchException e) {
+					System.out.println(ConsoleColor.toRed("数値を入力してください。"));
+					scanner.nextLine();
 				}
-			} catch (SQLException e) {
-				e.printStackTrace();
 			}
 			System.out.println("＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝");
-			System.out.print("編集後の部署番号を選択してください : " + beforeDepartment + " → ");
-			int newDepartmentNum = scanner.nextInt();
-			// 改行の打消
-			scanner.nextLine();
-			System.out.println("＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝");
 			// update
-			updateSql = "UPDATE tasks SET department = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?";
+			updateSql = "UPDATE tasks SET department = ?, updated_at = CURRENT_TIMESTAMP, updated_by = ? WHERE id = ?";
 			try {
 				Connection connection = SqlConnect.sqlConnect();
 				PreparedStatement pstmt = connection.prepareStatement(updateSql);
 				pstmt.setInt(1, newDepartmentNum);
-				pstmt.setInt(2, editTask);
+				pstmt.setString(2, Login.loggedInUser);
+				pstmt.setInt(3, editTask);
 				int rows = pstmt.executeUpdate();
 				if (rows > 0) {
-					System.out.println("編集が完了しました");
+					System.out.println(ConsoleColor.toBlue("編集が完了しました"));
 				} else {
 					System.out.println("失敗");
 				}
 			} catch (SQLException e) {
 				e.printStackTrace();
 			}
-			try {
-				int i = System.in.read();
-			} catch (Exception e) {
-				e.printStackTrace();
-			}
-			top.start();
+			EnterTop.start();
 			break;
 			
 		case 3 : 
-			selectSql = "SELECT id, name FROM users";
-			try {
-				Connection connection = SqlConnect.sqlConnect();
-				PreparedStatement pstmt = connection.prepareStatement(selectSql);
-				ResultSet rs = pstmt.executeQuery();
-				while (rs.next()) {
-					System.out.print(rs.getInt("id") + " ");
-					System.out.println(rs.getString("name"));
-				}
-			} catch (SQLException e) {
-				e.printStackTrace();
-			}
+			SelectSql.displayStaff();
+			int newStaff;
 			System.out.println("＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝");
-			System.out.print("編集後の担当idを入力してください。 " + beforeStaff + " → ");
-			int newStaff = scanner.nextInt();
-			// 打ち消し
-			scanner.nextLine();
+			while (true) {
+				System.out.print("担当者を選択してください。 " + beforeStaff + " → ");
+				try {
+					newStaff = scanner.nextInt();
+					scanner.nextLine();
+					if (!Validation.usersDataNumCheck(newStaff)) {
+						System.out.println(ConsoleColor.toRed("存在する番号を入力してください。"));
+						continue;
+					}
+					break;
+				} catch (InputMismatchException e) {
+					System.out.println(ConsoleColor.toRed("数値を入力してください。"));
+					scanner.nextLine();
+				}
+				
+			}
 			
 			// 登録
-			updateSql = "UPDATE tasks SET staff = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?";
+			updateSql = "UPDATE tasks SET staff = ?, updated_at = CURRENT_TIMESTAMP, updated_by = ? WHERE id = ?";
 			System.out.println("＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝");
 			try {
 				Connection connection = SqlConnect.sqlConnect();
 				PreparedStatement pstmt = connection.prepareStatement(updateSql);
 				pstmt.setInt(1, newStaff);
-				pstmt.setInt(2, editTask);
+				pstmt.setString(2, Login.loggedInUser);
+				pstmt.setInt(3, editTask);
 				int rows = pstmt.executeUpdate();
 				if (rows > 0) {
-					System.out.println("編集が完了しました。");
+					System.out.println(ConsoleColor.toBlue("編集が完了しました。"));
 				} else {
 					System.out.println("失敗");
 				}
 			} catch(SQLException e) {
 				e.printStackTrace();
 			}
-			try {
-				int i = System.in.read();
-			} catch (Exception e) {
-				e.printStackTrace();
-			}
-			top.start();
+			EnterTop.start();
 			break;
 		case 4 :
-			selectSql = "SELECT * FROM status_mst";
-			try {
-				Connection connection = SqlConnect.sqlConnect();
-				PreparedStatement pstmt = connection.prepareStatement(selectSql);
-				ResultSet rs = pstmt.executeQuery();
-				while (rs.next()) {
-					System.out.print(rs.getInt("id") + " ");
-					System.out.println(rs.getString("status"));
+			SelectSql.displayStatus();
+			int newStatusNum;
+			System.out.println("＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝");
+			while (true) {
+				System.out.print("編集後のステータス番号を選択してください。 " + beforeStatus + " → ");
+				try {
+					newStatusNum = scanner.nextInt();
+					scanner.nextLine();
+					if (!Validation.statusDataNumCheck(newStatusNum)) {
+						System.out.println(ConsoleColor.toRed("存在する番号を入力してください。"));
+						continue;
+					}
+					break;
+				} catch (InputMismatchException e) {
+					System.out.println(ConsoleColor.toRed("数値を入力してください。"));
+					scanner.nextLine();
 				}
-			} catch (SQLException e) {
-				e.printStackTrace();
 			}
 			System.out.println("＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝");
-			System.out.print("編集後のステータス番号を選択してください。 " + beforeStatus + " → ");
-			int newStatusNum = scanner.nextInt();
-			// 改行の打消
-			scanner.nextLine();
-			System.out.println("＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝");
 			// update
-			updateSql = "UPDATE tasks SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?";
+			updateSql = "UPDATE tasks SET status = ?, updated_at = CURRENT_TIMESTAMP, updated_by = ? WHERE id = ?";
 			try {
 				Connection connection = SqlConnect.sqlConnect();
 				PreparedStatement pstmt = connection.prepareStatement(updateSql);
 				pstmt.setInt(1, newStatusNum);
-				pstmt.setInt(2, editTask);
+				pstmt.setString(2, Login.loggedInUser);
+				pstmt.setInt(3, editTask);
 				int rows = pstmt.executeUpdate();
 				if (rows > 0) {
-					System.out.println("編集が完了しました。");
+					System.out.println(ConsoleColor.toBlue("編集が完了しました。"));
 				} else {
 					System.out.println("失敗");
 				}
 			} catch (SQLException e) {
 				e.printStackTrace();
 			}
-			try {
-				int i = System.in.read();
-			} catch (Exception e) {
-				e.printStackTrace();
-			}
-			top.start();
+			EnterTop.start();
 			break;
 			
 		case 5 :
-			System.out.print("編集後の内容を入力してください : " + beforeRemarks + " → ");
-			String newRemarks = scanner.nextLine();
+			String newRemarks = null;
+			while (true) {
+				System.out.print("編集後の内容を入力してください : " + beforeRemarks + " → ");
+				newRemarks = scanner.nextLine();
+				if (!Validation.isLengthInRange(newRemarks, 0, 50)) {
+					System.out.println(ConsoleColor.toRed("備考は50文字以内で入力してください。"));
+					continue;
+				}
+				break;
+			}
 			System.out.println("＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝");
 			// update
-			updateSql = "UPDATE tasks SET remarks = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?";
+			updateSql = "UPDATE tasks SET remarks = ?, updated_at = CURRENT_TIMESTAMP, updated_by = ? WHERE id = ?";
 			try {
 				Connection connection = SqlConnect.sqlConnect();
 				PreparedStatement pstmt = connection.prepareStatement(updateSql);
 				pstmt.setString(1, newRemarks);
-				pstmt.setInt(2, editTask);
+				pstmt.setString(2, Login.loggedInUser);
+				pstmt.setInt(3, editTask);
 				int rows = pstmt.executeUpdate();
 				if (rows > 0) {
-					System.out.println("編集が完了しました。");
+					System.out.println(ConsoleColor.toBlue("編集が完了しました。"));
 				} else {
 					System.out.println("失敗");
 				}
 			} catch (SQLException e) {
 				e.printStackTrace();
 			}
-			try {
-				int i = System.in.read();
-			} catch (Exception e) {
-				e.printStackTrace();
-			}
-			top.start();
+			EnterTop.start();
 			break;
 			
 		case 6 :
+			SelectSql.displayStaff();
+			int newCreatedBy;
 			System.out.println("＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝");
-			selectSql = "SELECT id, name FROM users";
-			try {
-				Connection connection = SqlConnect.sqlConnect();
-				PreparedStatement pstmt = connection.prepareStatement(selectSql);
-				ResultSet rs = pstmt.executeQuery();
-				while (rs.next()) {
-					System.out.print(rs.getInt("id") + " ");
-					System.out.println(rs.getString("name"));
+			while (true) {
+				System.out.print("変更後の担当idを入力してください : " + beforeCreatedBy + " → ");
+				try {
+					newCreatedBy = scanner.nextInt();
+					scanner.nextLine();
+					if (!Validation.usersDataNumCheck(newCreatedBy)) {
+						System.out.println(ConsoleColor.toRed("存在する番号を入力してください。"));
+						continue;
+					}
+					break;
+				} catch (InputMismatchException e) {
+					System.out.println(ConsoleColor.toRed("数値を入力してください。"));
+					scanner.nextLine();
 				}
-			} catch (SQLException e) {
-				e.printStackTrace();
 			}
 			System.out.println("＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝");
-			System.out.print("変更後の担当idを入力してください : " + beforeCreatedBy + " → ");
-			int newCreatedBy = scanner.nextInt();
-			// 改行の打ち消し
-			scanner.nextLine();
-			System.out.println("＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝");
 			// update
-			updateSql = "UPDATE tasks SET created_by = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?";
+			updateSql = "UPDATE tasks SET created_by = ?, updated_at = CURRENT_TIMESTAMP, created_by = ? WHERE id = ?";
 			try {
 				Connection connection = SqlConnect.sqlConnect();
 				PreparedStatement pstmt = connection.prepareStatement(updateSql);
 				pstmt.setInt(1, newCreatedBy);
-				pstmt.setInt(2, editTask);
+				pstmt.setString(2, Login.loggedInUser);
+				pstmt.setInt(3, editTask);
 				int rows = pstmt.executeUpdate();
 				if (rows > 0) {
-					System.out.println("編集が完了しました。");
+					System.out.println(ConsoleColor.toBlue("編集が完了しました。"));
 				} else {
 					System.out.println("失敗");
 				}
 			} catch (SQLException e) {
 				e.printStackTrace();
 			}
-			try {
-				int i = System.in.read();
-			} catch (Exception e) {
-				e.printStackTrace();
-			}
-			top.start();
+			EnterTop.start();
 			break;
+		default :
+			System.out.println(ConsoleColor.toRed("存在する番号を入力してください"));
 			
 		}
 	}
